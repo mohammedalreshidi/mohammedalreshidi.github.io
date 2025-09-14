@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>قائمة المهام بالأولويات</title>
+<style>
+  :root{
+    --bg:#f0f2f5; --card:#ffffff; --ink:#1f1f23; --muted:#6b6b73; --line:#e6e6ea;
+    --accent:#007aff; --radius:12px; --shadow:0 4px 12px rgba(0,0,0,.08);
+    --c-iu: #dc3545; --c-in: #fd7e14; --c-nu: #0d6efd; --c-nn: #6c757d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .container{
+    display:grid; grid-template-columns: 360px 1fr; gap:24px;
+    padding: clamp(16px,3vw,32px); max-width:1400px; margin:0 auto;
+  }
+  @media (max-width:960px){
+    .container{grid-template-columns:1fr}
+  }
+  .panel{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding: 22px; }
+  .main-content{ display:flex; flex-direction:column; gap:24px; }
+  
+  header h1{margin:0 0 4px; font-size:clamp(20px,2.6vw,26px)}
+  header .hint{color:var(--muted); font-size:14px; margin-bottom:20px;}
+  .form-group{ margin-bottom: 14px; }
+  .form-group label{ display:block; font-size:14px; font-weight:600; margin-bottom:6px; }
+  .form-group input, .form-group select{
+    width:100%; border:1px solid #ced4da; border-radius:10px; padding:12px; background:#fff; font:inherit; transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); outline: 0; box-shadow: 0 0 0 .25rem rgba(0,122,255,.25); }
+  .btn{
+    border:1px solid transparent; background:var(--accent); color:#fff; padding:12px 16px; 
+    border-radius:10px; cursor:pointer; width:100%; font-size:16px; font-weight:600; transition: background-color .2s;
+  }
+  .btn:hover{background-color:#0056b3;}
+  .btn:active{transform:translateY(1px)}
+
+  .tasks-header{display:flex; justify-content:space-between; align-items:center; font-weight:700; margin:0 0 12px; font-size:18px; border-bottom:1px solid var(--line); padding-bottom:10px;}
+  .task-count{font-size:14px; font-weight:600; background:var(--bg); color:var(--muted); padding: 2px 8px; border-radius:20px;}
+  .task-list{display:flex; flex-direction:column; gap:10px; padding:4px;}
+  
+  .task, .completed-task{ transition: all 0.3s ease; }
+  .task{ display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .task-priority{width:4px; height:24px; border-radius:99px; flex-shrink:0;}
+  .task-text{flex-grow:1; cursor:pointer;}
+  .task-edit-input{ width:100%; border:1px solid var(--accent); border-radius:8px; padding:6px; font:inherit; }
+  
+  .completed-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+  @media (max-width:600px){.completed-grid{grid-template-columns:1fr}}
+  
+  .completed-quad { border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .completed-quad h3 { display:flex; justify-content:space-between; font-size: 14px; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .completed-list { display: flex; flex-direction: column; gap: 8px; min-height: 40px;}
+
+  .completed-task { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); text-decoration: line-through; opacity: 0.8; }
+  
+  .task-actions{ margin-inline-start:auto; display:flex; gap:8px; }
+  .action-btn{ background:none; border:none; cursor:pointer; color:var(--muted); padding:4px; font-size:12px; }
+  .action-btn:hover{color:var(--accent)}
+  .action-btn.delete:hover{color:var(--c-iu)}
+
+  .empty-state { text-align:center; padding: 20px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <aside class="panel">
+    <header><h1>إضافة مهمة جديدة</h1><div class="hint">املأ البيانات واختر نوع الأولوية.</div></header>
+    <form id="addTaskForm">
+      <div class="form-group"><label for="taskDesc">وصف المهمة</label><input type="text" id="taskDesc" placeholder="مثال: التحضير لاجتماع الغد" required></div>
+      <div class="form-group">
+        <label for="taskPriority">الأولوية</label>
+        <select id="taskPriority" required>
+          <option value="IU" style="color:var(--c-iu)">🔴 مهم وعاجل</option><option value="IN" style="color:var(--c-in)">🟠 مهم وغير عاجل</option>
+          <option value="NU" style="color:var(--c-nu)">🔵 غير مهم وعاجل</option><option value="NN" style="color:var(--c-nn)">⚫️ غير مهم وغير عاجل</option>
+        </select>
+      </div>
+      <button type="submit" class="btn">إضافة إلى القائمة</button>
+    </form>
+  </aside>
+
+  <div class="main-content">
+    <main class="panel">
+      <div class="tasks-header"><h2>المهام النشطة</h2><span id="activeCount" class="task-count">0</span></div>
+      <div class="task-list" id="activeTaskList"></div>
+    </main>
+    <section class="panel">
+      <div class="tasks-header"><h2>تم الإنجاز</h2><span id="completedCount" class="task-count">0</span></div>
+      <div class="completed-grid">
+        <div class="completed-quad"><h3><span style="color:var(--c-iu)">🔴 مهم وعاجل</span><span id="count-IU" class="task-count">0</span></h3><div class="completed-list" id="completed-IU"></div></div>
+        <div class="completed-quad"><h3><span style="color:var(--c-in)">🟠 مهم وغير عاجل</span><span id="count-IN" class="task-count">0</span></h3><div class="completed-list" id="completed-IN"></div></div>
+        <div class="completed-quad"><h3><span style="color:var(--c-nu)">🔵 غير مهم وعاجل</span><span id="count-NU" class="task-count">0</span></h3><div class="completed-list" id="completed-NU"></div></div>
+        <div class="completed-quad"><h3><span style="color:var(--c-nn)">⚫️ غير مهم وغير عاجل</span><span id="count-NN" class="task-count">0</span></h3><div class="completed-list" id="completed-NN"></div></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  const STORAGE_KEY = 'eisenhower_tasks_v4';
+
+  // --- START OF FIX: Helper functions are now defined at the top ---
+  const load = () => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || ''); } 
+    catch { return null; }
+  };
+  
+  let data = load() || { IU:[], IN:[], NU:[], NN:[] };
+
+  const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const escapeHTML = (s) => s.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  // --- END OF FIX ---
+
+  // DOM Elements
+  const form = document.getElementById('addTaskForm');
+  const taskDescInput = document.getElementById('taskDesc');
+  const taskPrioritySelect = document.getElementById('taskPriority');
+  const activeTaskListDiv = document.getElementById('activeTaskList');
+  const completedLists = {
+    IU: document.getElementById('completed-IU'), IN: document.getElementById('completed-IN'),
+    NU: document.getElementById('completed-NU'), NN: document.getElementById('completed-NN'),
+  };
+  
+  // Constants
+  const priorityOrder = ['IU', 'IN', 'NU', 'NN'];
+  const priorityColors = { IU: 'var(--c-iu)', IN: 'var(--c-in)', NU: 'var(--c-nu)', NN: 'var(--c-nn)' };
+
+  const deleteTask = (key, id) => {
+    if (confirm('هل أنت متأكد من حذف هذه المهمة نهائياً؟')) {
+      const idx = data[key].findIndex(t => t.id === id);
+      if (idx > -1) { data[key].splice(idx, 1); save(); renderAll(); }
+    }
+  };
+
+  const toggleDone = (key, id) => {
+    const item = data[key].find(t => t.id === id);
+    if (item) { item.done = !item.done; save(); renderAll(); }
+  };
+  
+  function renderActiveTask(item, key) {
+    const el = document.createElement('div');
+    el.className = 'task';
+    el.innerHTML = `
+      <div class="task-priority" style="background-color:${priorityColors[key]}"></div>
+      <input type="checkbox" title="إتمام المهمة">
+      <div class="task-text">${escapeHTML(item.text)}</div>
+      <div class="task-actions"><button class="action-btn delete" title="حذف المهمة">حذف</button></div>`;
+    
+    el.querySelector('input[type="checkbox"]').addEventListener('change', () => toggleDone(key, item.id));
+    el.querySelector('.delete').addEventListener('click', () => deleteTask(key, item.id));
+    
+    const textDiv = el.querySelector('.task-text');
+    textDiv.addEventListener('dblclick', () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = item.text;
+      input.className = 'task-edit-input';
+      textDiv.replaceWith(input);
+      input.focus();
+
+      const saveEdit = () => {
+        const newText = input.value.trim();
+        if (newText && newText !== item.text) { item.text = newText; save(); }
+        renderAll();
+      };
+      input.addEventListener('blur', saveEdit);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') renderAll(); });
+    });
+    activeTaskListDiv.appendChild(el);
+  }
+  
+  function renderCompletedTask(item, key) {
+    const el = document.createElement('div');
+    el.className = 'completed-task';
+    el.innerHTML = `
+      <div class="task-priority" style="background-color:${priorityColors[key]}; height:16px;"></div>
+      <div class="task-text">${escapeHTML(item.text)}</div>
+      <div class="task-actions">
+        <button class="action-btn restore" title="إعادة المهمة">إعادة</button>
+        <button class="action-btn delete" title="حذف المهمة">حذف</button>
+      </div>`;
+    el.querySelector('.restore').addEventListener('click', () => toggleDone(key, item.id));
+    el.querySelector('.delete').addEventListener('click', () => deleteTask(key, item.id));
+    completedLists[key].appendChild(el);
+  }
+
+  function renderAll() {
+    activeTaskListDiv.innerHTML = '';
+    Object.values(completedLists).forEach(list => list.innerHTML = '');
+
+    let counts = { active: 0, completed: 0, IU: 0, IN: 0, NU: 0, NN: 0 };
+    
+    priorityOrder.forEach(key => {
+      (data[key] || []).forEach(item => {
+        if (item.done) {
+          counts.completed++; counts[key]++;
+          renderCompletedTask(item, key);
+        } else {
+          counts.active++;
+          renderActiveTask(item, key);
+        }
+      });
+    });
+
+    document.getElementById('activeCount').textContent = counts.active;
+    document.getElementById('completedCount').textContent = counts.completed;
+    priorityOrder.forEach(k => document.getElementById(`count-${k}`).textContent = counts[k]);
+    if (counts.active === 0) activeTaskListDiv.innerHTML = `<div class="empty-state">🎉<br>لا توجد مهام نشطة. عمل رائع!</div>`;
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = taskDescInput.value.trim();
+    if (!text) return;
+    
+    data[taskPrioritySelect.value].unshift({ id: crypto.randomUUID(), text, done: false });
+    
+    save(); 
+    renderAll();
+    
+    taskDescInput.value = ''; 
+    taskDescInput.focus();
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
